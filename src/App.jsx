@@ -15,19 +15,11 @@ const S = {
     fontFamily: "'Courier New', Courier, monospace",
   },
   header: {
-    background: "linear-gradient(180deg,#0d1528 0%,#0a0e1a 100%)",
-    borderBottom: "2px solid #1e3a5f",
-    padding: "20px 24px 0",
+    background: "linear-gradient(180deg,#000e40 0%,#040d28 60%,#0a0e1a 100%)",
+    borderBottom: "2px solid #1a3a7f",
+    padding: "16px 24px 0",
   },
-  titleRow: { display: "flex", alignItems: "center", gap: 14, marginBottom: 4 },
-  icon: {
-    width: 44, height: 44, background: "#1a2d4e",
-    border: "2px solid #2e5fa3",
-    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22,
-    flexShrink: 0,
-  },
-  subtitle: { fontSize: 10, letterSpacing: 4, color: "#4a7ab5", textTransform: "uppercase" },
-  title: { fontSize: 18, fontWeight: "bold", color: "#e8f0fc", letterSpacing: 2 },
+  titleRow: { display: "flex", alignItems: "center", gap: 16, marginBottom: 4 },
   budgetLabel: { fontSize: 10, color: "#4a7ab5", letterSpacing: 2, textAlign: "right" },
   budgetVal: { fontSize: 22, color: "#4ade80", letterSpacing: 1, textAlign: "right" },
   banner: (bg, border, color) => ({
@@ -37,12 +29,12 @@ const S = {
   }),
   tabs: { display: "flex", marginTop: 14 },
   tab: (active) => ({
-    background: active ? "#1e3a5f" : "transparent",
+    background: active ? "#0e2560" : "transparent",
     border: "none",
-    borderTop: active ? "2px solid #2e5fa3" : "2px solid transparent",
-    borderLeft: active ? "1px solid #1e3a5f" : "1px solid transparent",
-    borderRight: active ? "1px solid #1e3a5f" : "1px solid transparent",
-    color: active ? "#e8f0fc" : "#4a7ab5",
+    borderTop: active ? "2px solid #3a6fd8" : "2px solid transparent",
+    borderLeft: active ? "1px solid #1a3a7f" : "1px solid transparent",
+    borderRight: active ? "1px solid #1a3a7f" : "1px solid transparent",
+    color: active ? "#e8f0fc" : "#5a80b8",
     padding: "9px 20px", fontSize: 10, letterSpacing: 3, cursor: "pointer",
     fontFamily: "inherit",
   }),
@@ -403,7 +395,7 @@ export default function App() {
 
   function handleCopy() {
     const lines = [
-      "=== VANGUARD ORDER SUMMARY ===",
+      "=== OVERLAKE COMPOSITE SQUADRON — VANGUARD ORDER ===",
       `Date: ${new Date().toLocaleDateString()}`,
       `Budget: $${budget.toFixed(2)} | Order Total: $${displayTotal.toFixed(2)}`,
       "",
@@ -429,10 +421,21 @@ export default function App() {
       {/* Header */}
       <div style={S.header}>
         <div style={S.titleRow}>
-          <div style={S.icon}>✈</div>
-          <div style={{ flex: 1 }}>
-            <div style={S.subtitle}>Civil Air Patrol</div>
-            <div style={S.title}>LOGISTICS MANAGER</div>
+          <img
+            src="/cap-logo.png"
+            alt="Civil Air Patrol"
+            style={{ height: 38, filter: "brightness(0) invert(1)", flexShrink: 0, opacity: 0.92 }}
+          />
+          <div style={{ borderLeft: "1px solid #1e3a7f", paddingLeft: 14, flex: 1 }}>
+            <div style={{ fontSize: 9, letterSpacing: 3, color: "#5a82c0", textTransform: "uppercase", marginBottom: 2 }}>
+              PCR-WA-050 &middot; Redmond, WA
+            </div>
+            <div style={{ fontSize: 15, fontWeight: "bold", color: "#e8f0fc", letterSpacing: 2, lineHeight: 1.15 }}>
+              OVERLAKE COMPOSITE SQUADRON
+            </div>
+            <div style={{ fontSize: 9, letterSpacing: 3, color: "#4a6a9a", textTransform: "uppercase", marginTop: 2 }}>
+              Logistics Manager
+            </div>
           </div>
           <div style={{ textAlign: "right", marginRight: 8 }}>
             <div style={S.budgetLabel}>MONTHLY BUDGET</div>
