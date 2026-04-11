@@ -1,10 +1,15 @@
 import { useState, useMemo, useEffect } from "react";
+import { DemandPasswordModal, DemandEditor } from "./DemandEditor";
+import { MonitoringTab } from "./MonitoringTab";
 
 // ── Hardcoded credentials ────────────────────────────────────────────────────
 const SHEET_ID     = "11Kj9J2nyhbhUBGIePay3QFts-jd83Y9pHOMODNaNXKs";
 const API_KEY      = "AIzaSyADISu_YZy-5ds4Bfz9Uk92piO99KMsM0w";
 const SHEET_RANGE  = "Inventory!A5:J200";
 const BUDGET_RANGE = "Inventory!G3";
+// OAuth Client ID — create at console.cloud.google.com → APIs & Services → Credentials
+// → New OAuth 2.0 Client ID (Web application) → add your Vercel URL to authorized origins
+const CLIENT_ID    = "";
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 const S = {
@@ -247,7 +252,23 @@ export default function App() {
   const [prioritized, setPrioritized] = useState(false);
   const [copied, setCopied]       = useState(false);
   const [demoMode, setDemoMode]   = useState(false);
-  const [loans, setLoans]         = useState(loadLoans);
+  const [loans, setLoans]           = useState(loadLoans);
+  const [demandOverrides, setDemandOverrides] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("cap_demand") || "{}"); }
+    catch { return {}; }
+  });
+  const [monitor, setMonitor]       = useState(() => {
+    try { return JSON.parse(localStorage.getItem("cap_monitor") || "null"); }
+    catch { return null; }
+  });
+  const [showDemandPw, setShowDemandPw]       = useState(false);
+  const [showDemandEditor, setShowDemandEditor] = useState(false);
+
+  function saveMonitor(mon) {
+    setMonitor(mon);
+    if (mon === null) localStorage.removeItem("cap_monitor");
+    else localStorage.setItem("cap_monitor", JSON.stringify(mon));
+  }
 
   async function fetchSheet() {
     setLoading(true); setError(null);
@@ -265,7 +286,8 @@ export default function App() {
       const rows = dataJson.values || [];
       const parsed = [];
       let lastCat = "";
-      for (const row of rows) {
+      for (let ri = 0; ri < rows.length; ri++) {
+        const row  = rows[ri];
         const cat  = (row[0] || "").trim();
         const item = (row[1] || "").trim();
         if (!item) continue;
@@ -279,6 +301,7 @@ export default function App() {
           price:    parseFloat(row[7]) || 0,
           link:     (row[9] || "").trim(),
           minLevel: parseFloat(row[4]) || 0,
+          sheetRow: 5 + ri, // row 5 is index 0 in the API response
         });
       }
       setItems(parsed);
@@ -298,24 +321,24 @@ export default function App() {
 
   function loadDemo() {
     setItems([
-      { category: "Cadet Metal Insignia",    name: "C/Amn Insignia",         onHand: 0,  onOrder: 0, demand: 50, price: 8.75,  minLevel: 50, link: "https://www.vanguardmil.com/products/civil-air-patrol-airman-cadet-grade-chevron-insignia" },
-      { category: "",                        name: "C/SrA Insignia",          onHand: 7,  onOrder: 0, demand: 0,  price: 9.95,  minLevel: 0,  link: "" },
-      { category: "",                        name: "C/TSgt Insignia",         onHand: 5,  onOrder: 0, demand: 0,  price: 10.70, minLevel: 0,  link: "" },
-      { category: "",                        name: "C/MSgt Insignia",         onHand: 9,  onOrder: 0, demand: 0,  price: 11.70, minLevel: 0,  link: "" },
-      { category: "",                        name: "C/SMSgt Insignia",        onHand: 1,  onOrder: 0, demand: 0,  price: 12.75, minLevel: 0,  link: "" },
-      { category: "",                        name: "C/CMSgt Insignia",        onHand: 1,  onOrder: 0, demand: 0,  price: 15.20, minLevel: 0,  link: "" },
-      { category: "Cadet Fleece Patches",    name: "NCO Fleece Patch",        onHand: 7,  onOrder: 0, demand: 15, price: 2.15,  minLevel: 15, link: "" },
-      { category: "",                        name: "C/1st Lt Fleece Patch",   onHand: 4,  onOrder: 0, demand: 0,  price: 1.95,  minLevel: 0,  link: "" },
-      { category: "",                        name: "C/Capt Fleece Patch",     onHand: 0,  onOrder: 0, demand: 0,  price: 1.95,  minLevel: 0,  link: "" },
-      { category: "Cadet Achievement Ribbons", name: "C/Amn Ribbon / Curry Award", onHand: 1, onOrder: 0, demand: 35, price: 1.60, minLevel: 35, link: "https://www.vanguardmil.com/products/civil-air-patrol-cadet-curry-ribbon" },
-      { category: "",                        name: "C/A1C Ribbon / Arnold Award",  onHand: 15, onOrder: 0, demand: 5, price: 1.60, minLevel: 5, link: "" },
-      { category: "",                        name: "C/TSgt Ribbon / Rickenbacker", onHand: 7,  onOrder: 0, demand: 5, price: 1.60, minLevel: 5, link: "" },
-      { category: "",                        name: "C/2d Lt Ribbon / Mitchell",    onHand: 4,  onOrder: 0, demand: 0, price: 1.60, minLevel: 0, link: "" },
-      { category: "Senior Cloth Insignia",   name: "1st Lt Cloth Insignia",   onHand: 8,  onOrder: 0, demand: 10, price: 1.70,  minLevel: 10, link: "" },
-      { category: "",                        name: "Maj Cloth Insignia",      onHand: 4,  onOrder: 0, demand: 8,  price: 1.55,  minLevel: 8,  link: "" },
-      { category: "",                        name: "Lt Col Cloth Insignia",   onHand: 0,  onOrder: 0, demand: 8,  price: 1.55,  minLevel: 8,  link: "" },
-      { category: "Senior Epaulet Sleeves",  name: "1st Lt Epaulet Sleeve",   onHand: 0,  onOrder: 0, demand: 10, price: 4.45,  minLevel: 10, link: "" },
-      { category: "",                        name: "Lt Col Epaulet Sleeve",   onHand: 0,  onOrder: 0, demand: 8,  price: 5.50,  minLevel: 8,  link: "" },
+      { category: "Cadet Metal Insignia",    name: "C/Amn Insignia",         onHand: 0,  onOrder: 0, demand: 50, price: 8.75,  minLevel: 50, link: "https://www.vanguardmil.com/products/civil-air-patrol-airman-cadet-grade-chevron-insignia", sheetRow: 0 },
+      { category: "",                        name: "C/SrA Insignia",          onHand: 7,  onOrder: 0, demand: 0,  price: 9.95,  minLevel: 0,  link: "", sheetRow: 0 },
+      { category: "",                        name: "C/TSgt Insignia",         onHand: 5,  onOrder: 0, demand: 0,  price: 10.70, minLevel: 0,  link: "", sheetRow: 0 },
+      { category: "",                        name: "C/MSgt Insignia",         onHand: 9,  onOrder: 0, demand: 0,  price: 11.70, minLevel: 0,  link: "", sheetRow: 0 },
+      { category: "",                        name: "C/SMSgt Insignia",        onHand: 1,  onOrder: 0, demand: 0,  price: 12.75, minLevel: 0,  link: "", sheetRow: 0 },
+      { category: "",                        name: "C/CMSgt Insignia",        onHand: 1,  onOrder: 0, demand: 0,  price: 15.20, minLevel: 0,  link: "", sheetRow: 0 },
+      { category: "Cadet Fleece Patches",    name: "NCO Fleece Patch",        onHand: 7,  onOrder: 0, demand: 15, price: 2.15,  minLevel: 15, link: "", sheetRow: 0 },
+      { category: "",                        name: "C/1st Lt Fleece Patch",   onHand: 4,  onOrder: 0, demand: 0,  price: 1.95,  minLevel: 0,  link: "", sheetRow: 0 },
+      { category: "",                        name: "C/Capt Fleece Patch",     onHand: 0,  onOrder: 0, demand: 0,  price: 1.95,  minLevel: 0,  link: "", sheetRow: 0 },
+      { category: "Cadet Achievement Ribbons", name: "C/Amn Ribbon / Curry Award", onHand: 1, onOrder: 0, demand: 35, price: 1.60, minLevel: 35, link: "https://www.vanguardmil.com/products/civil-air-patrol-cadet-curry-ribbon", sheetRow: 0 },
+      { category: "",                        name: "C/A1C Ribbon / Arnold Award",  onHand: 15, onOrder: 0, demand: 5, price: 1.60, minLevel: 5, link: "", sheetRow: 0 },
+      { category: "",                        name: "C/TSgt Ribbon / Rickenbacker", onHand: 7,  onOrder: 0, demand: 5, price: 1.60, minLevel: 5, link: "", sheetRow: 0 },
+      { category: "",                        name: "C/2d Lt Ribbon / Mitchell",    onHand: 4,  onOrder: 0, demand: 0, price: 1.60, minLevel: 0, link: "", sheetRow: 0 },
+      { category: "Senior Cloth Insignia",   name: "1st Lt Cloth Insignia",   onHand: 8,  onOrder: 0, demand: 10, price: 1.70,  minLevel: 10, link: "", sheetRow: 0 },
+      { category: "",                        name: "Maj Cloth Insignia",      onHand: 4,  onOrder: 0, demand: 8,  price: 1.55,  minLevel: 8,  link: "", sheetRow: 0 },
+      { category: "",                        name: "Lt Col Cloth Insignia",   onHand: 0,  onOrder: 0, demand: 8,  price: 1.55,  minLevel: 8,  link: "", sheetRow: 0 },
+      { category: "Senior Epaulet Sleeves",  name: "1st Lt Epaulet Sleeve",   onHand: 0,  onOrder: 0, demand: 10, price: 4.45,  minLevel: 10, link: "", sheetRow: 0 },
+      { category: "",                        name: "Lt Col Epaulet Sleeve",   onHand: 0,  onOrder: 0, demand: 8,  price: 5.50,  minLevel: 8,  link: "", sheetRow: 0 },
     ]);
     setBudget(350);
     setDemoMode(true);
@@ -338,6 +361,86 @@ export default function App() {
     localStorage.setItem("cap_loans", JSON.stringify(updated));
   }
 
+  function lockInOrder() {
+    const mon = {
+      id: Date.now(),
+      orderDate: new Date().toISOString().split("T")[0],
+      lockedAt: Date.now(),
+      items: displayOrder.map(i => ({
+        name: i.name, qty: i.qty, price: i.price,
+        lineTotal: i.lineTotal, sheetRow: i.sheetRow,
+        onHandAtLock: i.onHand, received: false,
+      })),
+      placed: false, arrived: false, approved: false, sheetUpdated: false,
+      returns: [],
+    };
+    saveMonitor(mon);
+    setTab("monitoring");
+  }
+
+  async function approveOrder(token, mon, currentItems) {
+    try {
+      // Compute net on-hand changes (received + returns)
+      const changes = {};
+      for (const item of mon.items.filter(i => i.received)) {
+        const ci = currentItems.find(it => it.name === item.name);
+        if (!ci?.sheetRow) continue;
+        changes[item.name] = { sheetRow: ci.sheetRow, base: ci.onHand, delta: (changes[item.name]?.delta || 0) + item.qty };
+      }
+      for (const ret of (mon.returns || [])) {
+        const ci = currentItems.find(it => it.name === ret.itemName);
+        if (!ci?.sheetRow) continue;
+        if (changes[ret.itemName]) changes[ret.itemName].delta += Number(ret.qty);
+        else changes[ret.itemName] = { sheetRow: ci.sheetRow, base: ci.onHand, delta: Number(ret.qty) };
+      }
+
+      const batchData = Object.values(changes).map(({ sheetRow, base, delta }) => ({
+        range: `Inventory!C${sheetRow}`, values: [[base + delta]],
+      }));
+
+      if (batchData.length > 0) {
+        const r = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchUpdate`,
+          { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ valueInputOption: "USER_ENTERED", data: batchData }) }
+        );
+        if (!r.ok) { const e = await r.json(); throw new Error(e.error?.message || `API error ${r.status}`); }
+      }
+
+      // Create order history tab
+      const tabName = `Order ${mon.orderDate}`;
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,
+        { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ requests: [{ addSheet: { properties: { title: tabName } } }] }) }
+      );
+
+      const total = mon.items.reduce((s, i) => s + i.lineTotal, 0);
+      const tabRows = [
+        ["Overlake Composite Squadron — Order Record"],
+        [`Date: ${mon.orderDate}`, `Locked: ${new Date(mon.lockedAt).toLocaleString()}`],
+        [],
+        ["Item", "Qty Ordered", "Price/ea", "Line Total", "Received"],
+        ...mon.items.map(i => [i.name, i.qty, i.price, i.lineTotal, i.received ? "Yes" : "No"]),
+        [], ["ORDER TOTAL", "", "", total],
+      ];
+      if ((mon.returns || []).length > 0) {
+        tabRows.push([], ["RETURNS"], ["Item", "Qty Returned"], ...mon.returns.map(r => [r.itemName, r.qty]));
+      }
+      const wr = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(tabName + "!A1")}?valueInputOption=USER_ENTERED`,
+        { method: "PUT", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ values: tabRows }) }
+      );
+      if (!wr.ok) { const e = await wr.json(); throw new Error(e.error?.message || `Write error ${wr.status}`); }
+
+      fetchSheet();
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+
   // Active loan totals per item name
   const loanMap = useMemo(() => {
     const map = {};
@@ -347,26 +450,34 @@ export default function App() {
     return map;
   }, [loans]);
 
+  // Apply local demand overrides (password-protected)
+  const itemsWithDemand = useMemo(() =>
+    items.map(i => {
+      const d = demandOverrides[i.name] ?? i.demand;
+      return { ...i, demand: d, minLevel: d };
+    }),
+    [items, demandOverrides]);
+
   // Derived data
   const cats = useMemo(() =>
-    ["All", ...Array.from(new Set(items.map(i => i.category).filter(Boolean)))],
-    [items]);
+    ["All", ...Array.from(new Set(itemsWithDemand.map(i => i.category).filter(Boolean)))],
+    [itemsWithDemand]);
 
-  const filtered = useMemo(() => items.filter(i => {
+  const filtered = useMemo(() => itemsWithDemand.filter(i => {
     const cOk = catFilter === "All" || i.category === catFilter;
     const st  = getStatus(i, loanMap[i.name] || 0);
     const sOk = statFilter === "All" || st === statFilter.toLowerCase();
     return cOk && sOk;
-  }), [items, catFilter, statFilter, loanMap]);
+  }), [itemsWithDemand, catFilter, statFilter, loanMap]);
 
   const counts = useMemo(() => ({
-    ok:       items.filter(i => getStatus(i, loanMap[i.name] || 0) === "ok").length,
-    low:      items.filter(i => getStatus(i, loanMap[i.name] || 0) === "low").length,
-    critical: items.filter(i => getStatus(i, loanMap[i.name] || 0) === "critical").length,
-  }), [items, loanMap]);
+    ok:       itemsWithDemand.filter(i => getStatus(i, loanMap[i.name] || 0) === "ok").length,
+    low:      itemsWithDemand.filter(i => getStatus(i, loanMap[i.name] || 0) === "low").length,
+    critical: itemsWithDemand.filter(i => getStatus(i, loanMap[i.name] || 0) === "critical").length,
+  }), [itemsWithDemand, loanMap]);
 
   const orderItems = useMemo(() =>
-    items
+    itemsWithDemand
       .filter(i => qtyToOrder(i, loanMap[i.name] || 0) > 0)
       .map(i => {
         const loaned = loanMap[i.name] || 0;
@@ -377,7 +488,7 @@ export default function App() {
         const rank = { critical: 0, low: 1, ok: 2 };
         return rank[getStatus(a, a.loaned)] - rank[getStatus(b, b.loaned)];
       }),
-    [items, loanMap]);
+    [itemsWithDemand, loanMap]);
 
   const orderTotal  = useMemo(() => orderItems.reduce((s, i) => s + i.lineTotal, 0), [orderItems]);
   const overBudget  = orderTotal > budget;
@@ -409,15 +520,35 @@ export default function App() {
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   }
 
-  const activeLoanCount = loans.filter(l => !l.returned).length;
+  const activeLoanCount    = loans.filter(l => !l.returned).length;
+  const monitoringAlert    = monitor && !monitor.approved;
   const TABS = [
-    ["inventory", "INVENTORY"],
-    ["order",     "ORDER GENERATOR"],
-    ["loans",     activeLoanCount > 0 ? `LOANS (${activeLoanCount})` : "LOANS"],
+    ["inventory",  "INVENTORY"],
+    ["order",      "ORDER GENERATOR"],
+    ["loans",      activeLoanCount > 0 ? `LOANS (${activeLoanCount})` : "LOANS"],
+    ["monitoring", monitoringAlert ? "MONITORING ●" : "MONITORING"],
   ];
 
   return (
     <div style={S.app}>
+      {showDemandPw && (
+        <DemandPasswordModal
+          onSuccess={() => { setShowDemandPw(false); setShowDemandEditor(true); }}
+          onClose={() => setShowDemandPw(false)}
+        />
+      )}
+      {showDemandEditor && (
+        <DemandEditor
+          items={itemsWithDemand}
+          overrides={demandOverrides}
+          onSave={next => {
+            setDemandOverrides(next);
+            localStorage.setItem("cap_demand", JSON.stringify(next));
+          }}
+          onClose={() => setShowDemandEditor(false)}
+        />
+      )}
+
       {/* Header */}
       <div style={S.header}>
         <div style={S.titleRow}>
@@ -487,7 +618,7 @@ export default function App() {
               ))}
             </div>
 
-            <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
               {[
                 { label: "CATEGORY", val: catFilter,  set: setCatFilter,  opts: cats },
                 { label: "STATUS",   val: statFilter, set: setStatFilter, opts: ["All","OK","Low","Critical"] },
@@ -500,6 +631,15 @@ export default function App() {
                   </select>
                 </div>
               ))}
+              <button style={{ ...S.btn("#facc15", "#1a1400"), marginLeft: "auto" }}
+                onClick={() => setShowDemandPw(true)}>
+                🔒 EDIT DEMAND
+              </button>
+              {Object.keys(demandOverrides).length > 0 && (
+                <div style={{ fontSize: 9, color: "#facc15", letterSpacing: 1, alignSelf: "center" }}>
+                  ★ {Object.keys(demandOverrides).length} local override{Object.keys(demandOverrides).length > 1 ? "s" : ""} active
+                </div>
+              )}
             </div>
 
             <div style={{ overflowX: "auto" }}>
@@ -576,6 +716,16 @@ export default function App() {
                 <button onClick={handleCopy} style={S.btn(copied ? "#4ade80" : "#4a7ab5", copied ? "#0a2d0a" : "#0d1528")}>
                   {copied ? "✓ COPIED" : "⎘ COPY ORDER"}
                 </button>
+                {displayOrder.length > 0 && !monitor && (
+                  <button onClick={lockInOrder} style={S.btn("#facc15", "#1a1400")}>
+                    ◆ LOCK IN ORDER
+                  </button>
+                )}
+                {monitor && !monitor.approved && (
+                  <button onClick={() => setTab("monitoring")} style={S.btn("#f87171", "#1a0d0d")}>
+                    ● ORDER IN PROGRESS
+                  </button>
+                )}
               </div>
             </div>
 
@@ -643,10 +793,23 @@ export default function App() {
         {/* ── LOANS TAB ── */}
         {tab === "loans" && (
           <LoansTab
-            items={items}
+            items={itemsWithDemand}
             loans={loans}
             onAddLoan={addLoan}
             onReturnLoan={returnLoan}
+          />
+        )}
+
+        {/* ── MONITORING TAB ── */}
+        {tab === "monitoring" && (
+          <MonitoringTab
+            items={items}
+            orderItems={displayOrder}
+            monitor={monitor}
+            onUpdate={saveMonitor}
+            onLockOrder={lockInOrder}
+            clientId={CLIENT_ID}
+            onApprove={approveOrder}
           />
         )}
 
