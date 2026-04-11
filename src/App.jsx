@@ -255,8 +255,8 @@ export default function App() {
       const encode = r => encodeURIComponent(r);
       const base = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values`;
       const [dataRes, budgetRes] = await Promise.all([
-        fetch(`${base}/${encode(SHEET_RANGE)}?key=${API_KEY}`),
-        fetch(`${base}/${encode(BUDGET_RANGE)}?key=${API_KEY}`),
+        fetch(`${base}/${encode(SHEET_RANGE)}?key=${API_KEY}&valueRenderOption=UNFORMATTED_VALUE`),
+        fetch(`${base}/${encode(BUDGET_RANGE)}?key=${API_KEY}&valueRenderOption=UNFORMATTED_VALUE`),
       ]);
       if (!dataRes.ok) throw new Error(`Sheets API error: ${dataRes.status}`);
       const dataJson   = await dataRes.json();
