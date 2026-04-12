@@ -123,6 +123,31 @@ async function getOAuthToken() {
   });
 }
 
+// ── Ensure the Loans sheet tab exists (creates + writes header if missing) ────
+async function ensureLoansSheet(token) {
+  try {
+    const r = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent("Loans!A1:G1")}?key=${API_KEY}`
+    );
+    const json = await r.json();
+    if (r.ok && json.values?.length > 0) return; // tab exists with header
+  } catch {}
+  // Create tab (silently ignore if it already exists)
+  try {
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,
+      { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: "Loans" } } }] }) }
+    );
+  } catch {}
+  // Write header row
+  await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent("Loans!A1:G1")}?valueInputOption=USER_ENTERED`,
+    { method: "PUT", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ values: [["ID", "ITEM", "BORROWER", "QTY", "DATE_OUT", "RETURNED", "DATE_IN"]] }) }
+  );
+}
+
 // ── Loan Tracker Tab ─────────────────────────────────────────────────────────
 function LoansTab({ items, loans, onAddLoan, onReturnLoan }) {
   const today = new Date().toISOString().split("T")[0];
@@ -369,7 +394,33 @@ export default function App() {
     setDemoMode(true);
   }
 
-  useEffect(() => { fetchSheet(); }, []);
+  async function fetchLoans() {
+    try {
+      const range = encodeURIComponent("Loans!A2:G500");
+      const res = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}&valueRenderOption=UNFORMATTED_VALUE`
+      );
+      if (!res.ok) return; // Loans tab doesn't exist yet — keep localStorage data
+      const json = await res.json();
+      const rows = json.values || [];
+      const parsed = rows.map((row, i) => ({
+        id:        Number(row[0]) || (Date.now() + i),
+        itemName:  String(row[1] || ""),
+        borrower:  String(row[2] || ""),
+        qty:       Number(row[3]) || 1,
+        dateOut:   String(row[4] || ""),
+        returned:  row[5] === true || String(row[5]).toUpperCase() === "TRUE",
+        dateIn:    row[6] ? String(row[6]) : null,
+        sheetRow:  2 + i, // row 1 is the header
+      }));
+      setLoans(parsed);
+      localStorage.setItem("cap_loans", JSON.stringify(parsed));
+    } catch (e) {
+      console.error("fetchLoans:", e.message);
+    }
+  }
+
+  useEffect(() => { fetchSheet(); fetchLoans(); }, []);
 
   // Loan handlers
   async function writeOnHandDelta(itemName, delta) {
@@ -392,20 +443,51 @@ export default function App() {
     }
   }
 
-  function addLoan(loanData) {
-    const updated = [...loans, { ...loanData, id: Date.now(), returned: false, dateIn: null }];
+  async function addLoan(loanData) {
+    const loan = { ...loanData, id: Date.now(), qty: Number(loanData.qty), returned: false, dateIn: null };
+    // Optimistic local update
+    const updated = [...loans, { ...loan, sheetRow: null }];
     setLoans(updated);
     localStorage.setItem("cap_loans", JSON.stringify(updated));
+    // Persist to sheet
+    try {
+      const token = await getOAuthToken();
+      await ensureLoansSheet(token);
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent("Loans!A:G")}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+        { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ values: [[loan.id, loan.itemName, loan.borrower, loan.qty, loan.dateOut, "FALSE", ""]] }) }
+      );
+      fetchLoans(); // refresh to populate sheetRow values
+    } catch (e) {
+      console.error("addLoan sheet write:", e.message);
+    }
     writeOnHandDelta(loanData.itemName, -Number(loanData.qty));
   }
 
-  function returnLoan(id) {
-    const loan    = loans.find(l => l.id === id);
+  async function returnLoan(id) {
+    const loan   = loans.find(l => l.id === id);
+    const dateIn = new Date().toISOString().split("T")[0];
     const updated = loans.map(l =>
-      l.id === id ? { ...l, returned: true, dateIn: new Date().toISOString().split("T")[0] } : l
+      l.id === id ? { ...l, returned: true, dateIn } : l
     );
     setLoans(updated);
     localStorage.setItem("cap_loans", JSON.stringify(updated));
+    // Update sheet row
+    if (loan?.sheetRow) {
+      try {
+        const token = await getOAuthToken();
+        const range = encodeURIComponent(`Loans!F${loan.sheetRow}:G${loan.sheetRow}`);
+        const r = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`,
+          { method: "PUT", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ values: [["TRUE", dateIn]] }) }
+        );
+        if (r.status === 401) { _sessionToken = null; return returnLoan(id); }
+      } catch (e) {
+        console.error("returnLoan sheet write:", e.message);
+      }
+    }
     if (loan) writeOnHandDelta(loan.itemName, Number(loan.qty));
   }
 
