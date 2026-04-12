@@ -9,7 +9,7 @@ const SHEET_RANGE  = "Inventory!A5:J200";
 const BUDGET_RANGE = "Inventory!G3";
 // OAuth Client ID — create at console.cloud.google.com → APIs & Services → Credentials
 // → New OAuth 2.0 Client ID (Web application) → add your Vercel URL to authorized origins
-const CLIENT_ID    = "";
+const CLIENT_ID    = "437822481287-gs5pt8627b2oms4q7qr6tdpp29lql1e4.apps.googleusercontent.com";
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 const S = {
