@@ -104,6 +104,23 @@ function loadLoans() {
   catch { return []; }
 }
 
+// ── Session OAuth token cache (one popup per page load) ──────────────────────
+let _sessionToken = null;
+async function getOAuthToken() {
+  if (_sessionToken) return _sessionToken;
+  return new Promise((resolve, reject) => {
+    const client = window.google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: "https://www.googleapis.com/auth/spreadsheets",
+      callback: (resp) => {
+        if (resp.error) reject(new Error(resp.error_description || resp.error));
+        else { _sessionToken = resp.access_token; resolve(resp.access_token); }
+      },
+    });
+    client.requestAccessToken({ prompt: "" });
+  });
+}
+
 // ── Loan Tracker Tab ─────────────────────────────────────────────────────────
 function LoansTab({ items, loans, onAddLoan, onReturnLoan }) {
   const today = new Date().toISOString().split("T")[0];
@@ -347,18 +364,41 @@ export default function App() {
   useEffect(() => { fetchSheet(); }, []);
 
   // Loan handlers
+  async function writeOnHandDelta(itemName, delta) {
+    const item = items.find(i => i.name === itemName);
+    if (!item?.sheetRow) return;
+    try {
+      const token = await getOAuthToken();
+      const newVal = Math.max(0, item.onHand + delta);
+      const range  = encodeURIComponent(`Inventory!C${item.sheetRow}`);
+      const r = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`,
+        { method: "PUT",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ values: [[newVal]] }) }
+      );
+      if (r.status === 401) { _sessionToken = null; return writeOnHandDelta(itemName, delta); }
+      if (r.ok) fetchSheet();
+    } catch (e) {
+      console.error("writeOnHandDelta:", e.message);
+    }
+  }
+
   function addLoan(loanData) {
     const updated = [...loans, { ...loanData, id: Date.now(), returned: false, dateIn: null }];
     setLoans(updated);
     localStorage.setItem("cap_loans", JSON.stringify(updated));
+    writeOnHandDelta(loanData.itemName, -Number(loanData.qty));
   }
 
   function returnLoan(id) {
+    const loan    = loans.find(l => l.id === id);
     const updated = loans.map(l =>
       l.id === id ? { ...l, returned: true, dateIn: new Date().toISOString().split("T")[0] } : l
     );
     setLoans(updated);
     localStorage.setItem("cap_loans", JSON.stringify(updated));
+    if (loan) writeOnHandDelta(loan.itemName, Number(loan.qty));
   }
 
   function lockInOrder() {
