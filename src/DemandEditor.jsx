@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 // Change this to set the admin password for editing demand levels
-const DEMAND_PASSWORD = "overlake050";
+const DEMAND_PASSWORD = "1478";
 
 const inp = {
   background: "#0d1528", border: "1px solid #1e3a5f", color: "#c8d4e8",
