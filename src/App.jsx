@@ -12,12 +12,14 @@ const BUDGET_RANGE = "Inventory!G3";
 const CLIENT_ID    = "437822481287-gs5pt8627b2oms4q7qr6tdpp29lql1e4.apps.googleusercontent.com";
 
 // ── Styles ───────────────────────────────────────────────────────────────────
+const MONO = "'IBM Plex Mono', 'Courier New', monospace";
+
 const S = {
   app: {
     minHeight: "100vh",
     background: "#0a0e1a",
     color: "#c8d4e8",
-    fontFamily: "'Courier New', Courier, monospace",
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   header: {
     background: "linear-gradient(180deg,#000e40 0%,#040d28 60%,#0a0e1a 100%)",
@@ -25,12 +27,12 @@ const S = {
     padding: "16px 24px 0",
   },
   titleRow: { display: "flex", alignItems: "center", gap: 16, marginBottom: 4 },
-  budgetLabel: { fontSize: 10, color: "#4a7ab5", letterSpacing: 2, textAlign: "right" },
-  budgetVal: { fontSize: 22, color: "#4ade80", letterSpacing: 1, textAlign: "right" },
+  budgetLabel: { fontSize: 9, color: "#4a7ab5", letterSpacing: 2, textAlign: "right", fontFamily: MONO },
+  budgetVal: { fontSize: 22, color: "#4ade80", letterSpacing: 0, textAlign: "right", fontFamily: "'Inter', sans-serif", fontWeight: 700 },
   banner: (bg, border, color) => ({
     background: bg, border: `1px solid ${border}`, borderBottom: "none",
     padding: "3px 10px", fontSize: 10, letterSpacing: 2, color,
-    display: "inline-block",
+    display: "inline-block", fontFamily: MONO,
   }),
   tabs: { display: "flex", marginTop: 14 },
   tab: (active) => ({
@@ -40,31 +42,31 @@ const S = {
     borderLeft: active ? "1px solid #1a3a7f" : "1px solid transparent",
     borderRight: active ? "1px solid #1a3a7f" : "1px solid transparent",
     color: active ? "#e8f0fc" : "#5a80b8",
-    padding: "9px 20px", fontSize: 10, letterSpacing: 3, cursor: "pointer",
-    fontFamily: "inherit",
+    padding: "9px 20px", fontSize: 10, letterSpacing: 2, cursor: "pointer",
+    fontFamily: MONO,
   }),
   body: { padding: "20px 24px" },
   card: {
     background: "#0d1528", border: "1px solid #1e3a5f",
     padding: "14px 18px", flex: 1, minWidth: 100,
   },
-  cardLabel: { fontSize: 9, letterSpacing: 3, marginBottom: 6 },
-  cardVal: { fontSize: 26, lineHeight: 1 },
+  cardLabel: { fontSize: 9, letterSpacing: 3, marginBottom: 6, fontFamily: MONO },
+  cardVal: { fontSize: 26, lineHeight: 1, fontFamily: "'Inter', sans-serif", fontWeight: 700 },
   input: {
     background: "#0d1528", border: "1px solid #1e3a5f", color: "#c8d4e8",
-    padding: "6px 10px", fontFamily: "inherit", fontSize: 11, width: "100%",
+    padding: "6px 10px", fontFamily: "'Inter', sans-serif", fontSize: 13, width: "100%",
     boxSizing: "border-box",
   },
   btn: (color = "#2e5fa3", bg = "#0d1528") => ({
     background: bg, border: `1px solid ${color}`, color,
     padding: "8px 14px", fontSize: 9, letterSpacing: 2,
-    cursor: "pointer", fontFamily: "inherit",
+    cursor: "pointer", fontFamily: MONO,
   }),
-  tbl: { width: "100%", borderCollapse: "collapse", fontSize: 12 },
+  tbl: { width: "100%", borderCollapse: "collapse", fontSize: 13 },
   th: {
     textAlign: "left", padding: "8px 10px",
     fontSize: 9, letterSpacing: 2, color: "#4a7ab5", fontWeight: "normal",
-    borderBottom: "2px solid #1e3a5f",
+    borderBottom: "2px solid #1e3a5f", fontFamily: MONO,
   },
   td: (bg) => ({
     padding: "9px 10px", borderBottom: "1px solid #0f1e35",
@@ -598,13 +600,13 @@ export default function App() {
             style={{ height: 38, filter: "brightness(0) invert(1)", flexShrink: 0, opacity: 0.92 }}
           />
           <div style={{ borderLeft: "1px solid #1e3a7f", paddingLeft: 14, flex: 1 }}>
-            <div style={{ fontSize: 9, letterSpacing: 3, color: "#5a82c0", textTransform: "uppercase", marginBottom: 2 }}>
+            <div style={{ fontSize: 9, letterSpacing: 3, color: "#5a82c0", textTransform: "uppercase", marginBottom: 2, fontFamily: MONO }}>
               PCR-WA-050 &middot; Redmond, WA
             </div>
-            <div style={{ fontSize: 15, fontWeight: "bold", color: "#e8f0fc", letterSpacing: 2, lineHeight: 1.15 }}>
-              OVERLAKE COMPOSITE SQUADRON
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#e8f0fc", letterSpacing: 1, lineHeight: 1.15, fontFamily: "'Inter', sans-serif" }}>
+              Overlake Composite Squadron
             </div>
-            <div style={{ fontSize: 9, letterSpacing: 3, color: "#4a6a9a", textTransform: "uppercase", marginTop: 2 }}>
+            <div style={{ fontSize: 9, letterSpacing: 3, color: "#4a6a9a", textTransform: "uppercase", marginTop: 2, fontFamily: MONO }}>
               Logistics Manager
             </div>
           </div>

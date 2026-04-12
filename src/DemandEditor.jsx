@@ -3,13 +3,15 @@ import { useState } from "react";
 // Change this to set the admin password for editing demand levels
 const DEMAND_PASSWORD = "1478";
 
+const MONO = "'IBM Plex Mono', 'Courier New', monospace";
+
 const inp = {
   background: "#0d1528", border: "1px solid #1e3a5f", color: "#c8d4e8",
-  padding: "6px 10px", fontFamily: "inherit", fontSize: 11, boxSizing: "border-box",
+  padding: "6px 10px", fontFamily: "'Inter', sans-serif", fontSize: 13, boxSizing: "border-box",
 };
 const btn = (c = "#2e5fa3", bg = "#0d1528") => ({
   background: bg, border: `1px solid ${c}`, color: c,
-  padding: "8px 14px", fontSize: 9, letterSpacing: 2, cursor: "pointer", fontFamily: "inherit",
+  padding: "8px 14px", fontSize: 9, letterSpacing: 2, cursor: "pointer", fontFamily: MONO,
 });
 const overlay = {
   position: "fixed", inset: 0, background: "#000b", zIndex: 999,

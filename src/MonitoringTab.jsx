@@ -1,21 +1,23 @@
 import { useState } from "react";
 
 // ── Shared mini-styles ───────────────────────────────────────────────────────
+const MONO = "'IBM Plex Mono', 'Courier New', monospace";
+
 const S = {
   btn: (c = "#2e5fa3", bg = "#0d1528") => ({
     background: bg, border: `1px solid ${c}`, color: c,
     padding: "8px 14px", fontSize: 9, letterSpacing: 2,
-    cursor: "pointer", fontFamily: "inherit",
+    cursor: "pointer", fontFamily: MONO,
   }),
   inp: {
     background: "#0d1528", border: "1px solid #1e3a5f", color: "#c8d4e8",
-    padding: "6px 10px", fontFamily: "inherit", fontSize: 11,
+    padding: "6px 10px", fontFamily: "'Inter', sans-serif", fontSize: 13,
     width: "100%", boxSizing: "border-box",
   },
   th: {
     textAlign: "left", padding: "8px 10px",
     fontSize: 9, letterSpacing: 2, color: "#4a7ab5", fontWeight: "normal",
-    borderBottom: "2px solid #1e3a5f",
+    borderBottom: "2px solid #1e3a5f", fontFamily: MONO,
   },
   td: (bg) => ({ padding: "9px 10px", borderBottom: "1px solid #0f1e35", background: bg }),
   tbl: { width: "100%", borderCollapse: "collapse", fontSize: 12 },
