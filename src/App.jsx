@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Fragment } from "react";
 import { DemandPasswordModal, DemandEditor } from "./DemandEditor";
 import { MonitoringTab } from "./MonitoringTab";
 
@@ -34,7 +34,7 @@ const S = {
     padding: "3px 10px", fontSize: 10, letterSpacing: 2, color,
     display: "inline-block", fontFamily: MONO,
   }),
-  tabs: { display: "flex", marginTop: 14 },
+  tabs: { display: "flex", marginTop: 14, overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" },
   tab: (active) => ({
     background: active ? "#0e2560" : "transparent",
     border: "none",
@@ -45,7 +45,7 @@ const S = {
     padding: "9px 20px", fontSize: 10, letterSpacing: 2, cursor: "pointer",
     fontFamily: MONO,
   }),
-  body: { padding: "20px 24px" },
+  body: (mob) => ({ padding: mob ? "14px 12px" : "20px 24px" }),
   card: {
     background: "#0d1528", border: "1px solid #1e3a5f",
     padding: "14px 18px", flex: 1, minWidth: 100,
@@ -280,8 +280,14 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem("cap_monitor") || "null"); }
     catch { return null; }
   });
-  const [showDemandPw, setShowDemandPw]       = useState(false);
+  const [showDemandPw, setShowDemandPw]         = useState(false);
   const [showDemandEditor, setShowDemandEditor] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
+  useEffect(() => {
+    const h = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
 
   function saveMonitor(mon) {
     setMonitor(mon);
@@ -566,9 +572,9 @@ export default function App() {
   const monitoringAlert    = monitor && !monitor.approved;
   const TABS = [
     ["inventory",  "INVENTORY"],
-    ["order",      "ORDER GENERATOR"],
+    ["order",      isMobile ? "ORDER" : "ORDER GENERATOR"],
     ["loans",      activeLoanCount > 0 ? `LOANS (${activeLoanCount})` : "LOANS"],
-    ["monitoring", monitoringAlert ? "MONITORING ●" : "MONITORING"],
+    ["monitoring", monitoringAlert ? (isMobile ? "MONITOR ●" : "MONITORING ●") : (isMobile ? "MONITOR" : "MONITORING")],
   ];
 
   return (
@@ -593,31 +599,51 @@ export default function App() {
 
       {/* Header */}
       <div style={S.header}>
-        <div style={S.titleRow}>
-          <img
-            src="/cap-logo.png"
-            alt="Civil Air Patrol"
-            style={{ height: 38, filter: "brightness(0) invert(1)", flexShrink: 0, opacity: 0.92 }}
-          />
-          <div style={{ borderLeft: "1px solid #1e3a7f", paddingLeft: 14, flex: 1 }}>
-            <div style={{ fontSize: 9, letterSpacing: 3, color: "#5a82c0", textTransform: "uppercase", marginBottom: 2, fontFamily: MONO }}>
-              PCR-WA-050 &middot; Redmond, WA
+        {isMobile ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <img src="/cap-logo.png" alt="Civil Air Patrol"
+              style={{ height: 26, filter: "brightness(0) invert(1)", flexShrink: 0, opacity: 0.92 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#e8f0fc", fontFamily: "'Inter', sans-serif", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                Overlake CAP
+              </div>
+              <div style={{ fontSize: 8, letterSpacing: 2, color: "#4a6a9a", fontFamily: MONO }}>LOGISTICS MGR</div>
             </div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#e8f0fc", letterSpacing: 1, lineHeight: 1.15, fontFamily: "'Inter', sans-serif" }}>
-              Overlake Composite Squadron
+            <div style={{ textAlign: "right", flexShrink: 0 }}>
+              <div style={{ fontSize: 8, color: "#4a7ab5", letterSpacing: 1, fontFamily: MONO }}>BUDGET</div>
+              <div style={{ fontSize: 16, color: "#4ade80", fontWeight: 700, fontFamily: "'Inter', sans-serif", lineHeight: 1 }}>${budget.toFixed(2)}</div>
             </div>
-            <div style={{ fontSize: 9, letterSpacing: 3, color: "#4a6a9a", textTransform: "uppercase", marginTop: 2, fontFamily: MONO }}>
-              Logistics Manager
-            </div>
+            <button style={{ ...S.btn("#4a7ab5"), padding: "6px 10px", fontSize: 10 }} onClick={fetchSheet} disabled={loading}>
+              {loading ? "⟳" : "↺"}
+            </button>
           </div>
-          <div style={{ textAlign: "right", marginRight: 8 }}>
-            <div style={S.budgetLabel}>MONTHLY BUDGET</div>
-            <div style={S.budgetVal}>${budget.toFixed(2)}</div>
+        ) : (
+          <div style={S.titleRow}>
+            <img
+              src="/cap-logo.png"
+              alt="Civil Air Patrol"
+              style={{ height: 38, filter: "brightness(0) invert(1)", flexShrink: 0, opacity: 0.92 }}
+            />
+            <div style={{ borderLeft: "1px solid #1e3a7f", paddingLeft: 14, flex: 1 }}>
+              <div style={{ fontSize: 9, letterSpacing: 3, color: "#5a82c0", textTransform: "uppercase", marginBottom: 2, fontFamily: MONO }}>
+                PCR-WA-050 &middot; Redmond, WA
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#e8f0fc", letterSpacing: 1, lineHeight: 1.15, fontFamily: "'Inter', sans-serif" }}>
+                Overlake Composite Squadron
+              </div>
+              <div style={{ fontSize: 9, letterSpacing: 3, color: "#4a6a9a", textTransform: "uppercase", marginTop: 2, fontFamily: MONO }}>
+                Logistics Manager
+              </div>
+            </div>
+            <div style={{ textAlign: "right", marginRight: 8 }}>
+              <div style={S.budgetLabel}>MONTHLY BUDGET</div>
+              <div style={S.budgetVal}>${budget.toFixed(2)}</div>
+            </div>
+            <button style={S.btn("#4a7ab5")} onClick={fetchSheet} disabled={loading}>
+              {loading ? "⟳ SYNCING" : "↺ REFRESH"}
+            </button>
           </div>
-          <button style={S.btn("#4a7ab5")} onClick={fetchSheet} disabled={loading}>
-            {loading ? "⟳ SYNCING" : "↺ REFRESH"}
-          </button>
-        </div>
+        )}
 
         {demoMode && (
           <div style={S.banner("#1a2500", "#4a7a00", "#a3c44a")}>◆ DEMO MODE — sheet unavailable</div>
@@ -641,7 +667,7 @@ export default function App() {
         </div>
       </div>
 
-      <div style={S.body}>
+      <div style={S.body(isMobile)}>
 
         {/* ── INVENTORY TAB ── */}
         {tab === "inventory" && (
@@ -688,8 +714,8 @@ export default function App() {
               <table style={S.tbl}>
                 <thead>
                   <tr>
-                    {["CATEGORY","ITEM NAME","ON HAND","ON LOAN","DEMAND","TO ORDER","PRICE/EA","STATUS"].map(h => (
-                      <th key={h} style={S.th}>{h}</th>
+                    {["ITEM NAME","ON HAND","ON LOAN","DEMAND","TO ORDER","PRICE/EA","STATUS"].map(h => (
+                      <th key={h} style={{ ...S.th, whiteSpace: "nowrap" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -700,33 +726,42 @@ export default function App() {
                     const sc  = STATUS[st];
                     const bg  = idx % 2 === 0 ? "#0d1528" : "transparent";
                     const toOrd = qtyToOrder(item, loaned);
+                    const showCatHeader = item.category && (idx === 0 || item.category !== filtered[idx - 1].category);
                     return (
-                      <tr key={idx}>
-                        <td style={{ ...S.td(bg), fontSize: 9, color: "#4a7ab5", fontWeight: "bold" }}>{item.category || ""}</td>
-                        <td style={{ ...S.td(bg), color: "#e8f0fc" }}>{item.name}</td>
-                        <td style={{ ...S.td(bg), color: item.onHand === 0 ? "#f87171" : "#e8f0fc", fontWeight: "bold", textAlign: "center" }}>{item.onHand}</td>
-                        <td style={{ ...S.td(bg), textAlign: "center" }}>
-                          {loaned > 0
-                            ? <span style={{ color: "#facc15", fontSize: 10 }}>{loaned}</span>
-                            : <span style={{ color: "#2e3a4e" }}>—</span>}
-                        </td>
-                        <td style={{ ...S.td(bg), color: "#7a9cc8", textAlign: "center" }}>{item.demand}</td>
-                        <td style={{ ...S.td(bg), textAlign: "center" }}>
-                          {toOrd > 0
-                            ? <span style={{ color: "#facc15", fontWeight: "bold", background: "#1a1400", padding: "2px 6px", border: "1px solid #facc1544" }}>{toOrd}</span>
-                            : <span style={{ color: "#2e5fa3" }}>—</span>}
-                        </td>
-                        <td style={{ ...S.td(bg), color: "#7a9cc8", textAlign: "center" }}>{item.price > 0 ? `$${item.price.toFixed(2)}` : "—"}</td>
-                        <td style={S.td(bg)}>
-                          <span style={{ display: "inline-flex", alignItems: "center", fontSize: 9, letterSpacing: 2, color: sc.color }}>
-                            <span style={S.dot(sc.color)} />{sc.label}
-                          </span>
-                        </td>
-                      </tr>
+                      <Fragment key={idx}>
+                        {showCatHeader && (
+                          <tr>
+                            <td colSpan={7} style={{ padding: "7px 10px", background: "#0a1220", borderBottom: "1px solid #1a3a6f", borderTop: idx > 0 ? "2px solid #1a3a6f" : "none", fontSize: 9, letterSpacing: 3, color: "#4a7ab5", fontFamily: MONO }}>
+                              ◆ {item.category}
+                            </td>
+                          </tr>
+                        )}
+                        <tr>
+                          <td style={{ ...S.td(bg), color: "#e8f0fc", whiteSpace: "nowrap" }}>{item.name}</td>
+                          <td style={{ ...S.td(bg), color: item.onHand === 0 ? "#f87171" : "#e8f0fc", fontWeight: "bold", textAlign: "center" }}>{item.onHand}</td>
+                          <td style={{ ...S.td(bg), textAlign: "center" }}>
+                            {loaned > 0
+                              ? <span style={{ color: "#facc15", fontSize: 10 }}>{loaned}</span>
+                              : <span style={{ color: "#2e3a4e" }}>—</span>}
+                          </td>
+                          <td style={{ ...S.td(bg), color: "#7a9cc8", textAlign: "center" }}>{item.demand}</td>
+                          <td style={{ ...S.td(bg), textAlign: "center" }}>
+                            {toOrd > 0
+                              ? <span style={{ color: "#facc15", fontWeight: "bold", background: "#1a1400", padding: "2px 6px", border: "1px solid #facc1544" }}>{toOrd}</span>
+                              : <span style={{ color: "#2e5fa3" }}>—</span>}
+                          </td>
+                          <td style={{ ...S.td(bg), color: "#7a9cc8", textAlign: "center" }}>{item.price > 0 ? `$${item.price.toFixed(2)}` : "—"}</td>
+                          <td style={S.td(bg)}>
+                            <span style={{ display: "inline-flex", alignItems: "center", fontSize: 9, letterSpacing: 2, color: sc.color, whiteSpace: "nowrap" }}>
+                              <span style={S.dot(sc.color)} />{sc.label}
+                            </span>
+                          </td>
+                        </tr>
+                      </Fragment>
                     );
                   })}
                   {filtered.length === 0 && (
-                    <tr><td colSpan={8} style={{ padding: 24, textAlign: "center", color: "#4a7ab5" }}>NO ITEMS MATCH FILTER</td></tr>
+                    <tr><td colSpan={7} style={{ padding: 24, textAlign: "center", color: "#4a7ab5" }}>NO ITEMS MATCH FILTER</td></tr>
                   )}
                 </tbody>
               </table>
