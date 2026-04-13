@@ -34,8 +34,9 @@ function secondTuesdayOf(year, month) {
 
 function getNextOrderDate() {
   const now = new Date();
+  now.setHours(0, 0, 0, 0); // compare at day boundary so today's date is included
   const st = secondTuesdayOf(now.getFullYear(), now.getMonth());
-  if (st > now) return st;
+  if (st >= now) return st;
   const nm = now.getMonth() === 11 ? 0 : now.getMonth() + 1;
   const ny = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
   return secondTuesdayOf(ny, nm);
@@ -116,28 +117,15 @@ export function MonitoringTab({
   }
 
   // ── Approve ──
+  // OAuth is handled inside onApprove (uses the shared session token cache in App.jsx)
   async function handleApprove() {
     if (!clientId) {
       setApproveErr("OAuth Client ID not configured. See the CLIENT_ID constant in App.jsx.");
       return;
     }
     setApproving(true); setApproveErr(""); setApproveOk(false);
-
-    // Request OAuth token via Google Identity Services
     try {
-      const token = await new Promise((resolve, reject) => {
-        const client = window.google.accounts.oauth2.initTokenClient({
-          client_id: clientId,
-          scope: "https://www.googleapis.com/auth/spreadsheets",
-          callback: (resp) => {
-            if (resp.error) reject(new Error(resp.error));
-            else resolve(resp.access_token);
-          },
-        });
-        client.requestAccessToken({ prompt: "consent" });
-      });
-
-      const result = await onApprove(token, monitor, items);
+      const result = await onApprove(monitor, items);
       if (result.ok) {
         setApproveOk(true);
         onUpdate({ ...monitor, approved: true, sheetUpdated: true });

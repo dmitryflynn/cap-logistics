@@ -21,11 +21,11 @@ const S = {
     color: "#c8d4e8",
     fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
-  header: {
+  header: (mob) => ({
     background: "linear-gradient(180deg,#000e40 0%,#040d28 60%,#0a0e1a 100%)",
     borderBottom: "2px solid #1a3a7f",
-    padding: "16px 24px 0",
-  },
+    padding: mob ? "12px 14px 0" : "16px 24px 0",
+  }),
   titleRow: { display: "flex", alignItems: "center", gap: 16, marginBottom: 4 },
   budgetLabel: { fontSize: 9, color: "#4a7ab5", letterSpacing: 2, textAlign: "right", fontFamily: MONO },
   budgetVal: { fontSize: 22, color: "#4ade80", letterSpacing: 0, textAlign: "right", fontFamily: "'Inter', sans-serif", fontWeight: 700 },
@@ -423,7 +423,7 @@ export default function App() {
   useEffect(() => { fetchSheet(); fetchLoans(); }, []);
 
   // Loan handlers
-  async function writeOnHandDelta(itemName, delta) {
+  async function writeOnHandDelta(itemName, delta, _retried = false) {
     const item = items.find(i => i.name === itemName);
     if (!item?.sheetRow) return;
     try {
@@ -436,7 +436,7 @@ export default function App() {
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
           body: JSON.stringify({ values: [[newVal]] }) }
       );
-      if (r.status === 401) { _sessionToken = null; return writeOnHandDelta(itemName, delta); }
+      if (r.status === 401 && !_retried) { _sessionToken = null; return writeOnHandDelta(itemName, delta, true); }
       if (r.ok) fetchSheet();
     } catch (e) {
       console.error("writeOnHandDelta:", e.message);
@@ -483,7 +483,8 @@ export default function App() {
           { method: "PUT", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
             body: JSON.stringify({ values: [["TRUE", dateIn]] }) }
         );
-        if (r.status === 401) { _sessionToken = null; return returnLoan(id); }
+        if (r.status === 401) { _sessionToken = null; }
+        fetchLoans(); // re-sync all devices after marking returned
       } catch (e) {
         console.error("returnLoan sheet write:", e.message);
       }
@@ -508,8 +509,9 @@ export default function App() {
     setTab("monitoring");
   }
 
-  async function approveOrder(token, mon, currentItems) {
+  async function approveOrder(mon, currentItems) {
     try {
+      const token = await getOAuthToken(); // uses shared _sessionToken cache — no extra popup
       // Compute net on-hand changes (received + returns)
       const changes = {};
       for (const item of mon.items.filter(i => i.received)) {
@@ -680,7 +682,7 @@ export default function App() {
       )}
 
       {/* Header */}
-      <div style={S.header}>
+      <div style={S.header(isMobile)}>
         {isMobile ? (
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
             <img src="/cap-logo.png" alt="Civil Air Patrol"
@@ -695,7 +697,7 @@ export default function App() {
               <div style={{ fontSize: 8, color: "#4a7ab5", letterSpacing: 1, fontFamily: MONO }}>BUDGET</div>
               <div style={{ fontSize: 16, color: "#4ade80", fontWeight: 700, fontFamily: "'Inter', sans-serif", lineHeight: 1 }}>${budget.toFixed(2)}</div>
             </div>
-            <button style={{ ...S.btn("#4a7ab5"), padding: "6px 10px", fontSize: 10 }} onClick={fetchSheet} disabled={loading}>
+            <button style={{ ...S.btn("#4a7ab5"), padding: "6px 10px", fontSize: 10 }} onClick={() => { fetchSheet(); fetchLoans(); }} disabled={loading}>
               {loading ? "⟳" : "↺"}
             </button>
           </div>
@@ -721,7 +723,7 @@ export default function App() {
               <div style={S.budgetLabel}>MONTHLY BUDGET</div>
               <div style={S.budgetVal}>${budget.toFixed(2)}</div>
             </div>
-            <button style={S.btn("#4a7ab5")} onClick={fetchSheet} disabled={loading}>
+            <button style={S.btn("#4a7ab5")} onClick={() => { fetchSheet(); fetchLoans(); }} disabled={loading}>
               {loading ? "⟳ SYNCING" : "↺ REFRESH"}
             </button>
           </div>

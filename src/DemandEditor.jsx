@@ -63,7 +63,8 @@ export function DemandEditor({ items, overrides, onSave, onClose }) {
     const next = {};
     items.forEach(i => {
       const v = parseInt(vals[i.name]);
-      if (!isNaN(v) && v >= 0) next[i.name] = v;
+      // Only persist items that actually differ from the sheet default
+      if (!isNaN(v) && v >= 0 && v !== i.demand) next[i.name] = v;
     });
     onSave(next);
     onClose();
