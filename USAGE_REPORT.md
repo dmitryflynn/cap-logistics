@@ -90,9 +90,20 @@ Each row shows the item, its priority (Critical / Low / OK), the suggested order
 
 The current budget is shown at the top alongside the total order cost. If the order exceeds budget, a warning appears. Click **PRIORITIZE** to automatically trim the order — it drops OK items first, then LOW items, until the total fits within budget.
 
-### Locking and Exporting
+### Exporting the Order
 
-- Click **⎘ COPY ORDER** to copy the order summary to the clipboard. Paste it into an email or the supplier's order form.
+Click **⬇ EXPORT ORDER** to download an Excel file named `overlake-order-YYYY-MM-DD.xlsx`. The file contains one row per item with columns for Item Name, Priority, Qty, Price/ea, Line Total, and the supplier link. A summary block at the bottom shows the Order Total, Budget, and Remaining.
+
+#### Opening the export in Google Sheets
+
+1. Go to [sheets.google.com](https://sheets.google.com) and sign in.
+2. Click **Blank spreadsheet** to open a new sheet, then go to **File → Import**.
+3. Select the **Upload** tab and drag the downloaded `.xlsx` file in, or click **Browse** to find it.
+4. Under **Import location** choose **Replace spreadsheet**, then click **Import data**.
+5. The order will open as a fully editable Google Sheet — add notes, share it with others, or print it from there.
+
+### Locking the Order
+
 - Click **◆ LOCK IN ORDER** to snapshot the order and move it to the Monitoring tab for shipment tracking.
 
 ---
@@ -145,7 +156,7 @@ To permanently change a demand level for everyone, edit Column E in the Google S
 
 1. **Check inventory** — Inventory tab, filter by CRITICAL and LOW.
 2. **Review the order** — Order Generator tab, confirm quantities and budget.
-3. **Copy and submit** — Copy order to clipboard, submit to supplier.
+3. **Export and submit** — Click Export Order to download the `.xlsx` file, then submit to supplier.
 4. **Lock the order** — Click Lock In Order to move it to Monitoring.
 5. **Mark as placed** — Monitoring tab → Mark as Placed.
 6. **Enter tracking number** — Add tracking number and estimated delivery date.
