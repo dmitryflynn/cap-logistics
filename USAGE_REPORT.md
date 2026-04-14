@@ -55,7 +55,7 @@ Use this tab to track items loaned out to members and return them when they come
 
 1. Select the item from the dropdown.
 2. Enter the borrower's name.
-3. Enter the quantity being loaned.
+3. Enter the quantity being loaned — **whole numbers only** (e.g. 2, not 1.5).
 4. The date auto-fills to today — adjust if needed.
 5. Click **+ LOG LOAN**.
 
@@ -88,7 +88,7 @@ Each row shows the item, its priority (Critical / Low / OK), the suggested order
 
 ### Budget
 
-The current budget is shown at the top alongside the total order cost. If the order exceeds budget, a warning appears. Click **PRIORITIZE** to automatically trim the order — it drops OK items first, then LOW items, until the total fits within budget.
+The current budget is shown at the top alongside the total order cost. If the order exceeds budget, a warning appears. Click **PRIORITIZE** to automatically trim the order — it drops OK items first, then LOW items, until the total fits within budget. Prioritized mode clears itself automatically if inventory or demand changes bring the order back within budget.
 
 ### Exporting the Order
 
@@ -128,9 +128,9 @@ PLACED  →  ARRIVED  →  APPROVED
 
 **Mark as Arrived** — when the package arrives, click this, then work through the item checklist to verify everything against the packing list.
 
-**Returns** — if any items need to go back to the supplier, use the **Add Return** section to log the item and quantity.
+**Returns** — if any items need to go back to the supplier, use the **Add Return** section to log the item and quantity. Quantities must be whole numbers of at least 1.
 
-**Approve Order** — once the order is marked both Placed and Arrived, the Approve button becomes active. Clicking it signs into Google and writes the received quantities to the On Hand column in the sheet. It also creates a permanent order record tab in the sheet. This action cannot be undone, so only approve once everything is verified.
+**Approve Order** — once the order is marked both Placed and Arrived **and** at least one item has been marked received (or a return has been logged), the Approve button becomes active. Clicking it signs into Google and writes the received quantities to the On Hand column in the sheet. It also creates a permanent order record tab in the sheet. This action cannot be undone, so only approve once everything is verified.
 
 ### Next Order Date
 
