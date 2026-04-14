@@ -154,12 +154,13 @@ export function MonitoringTab({
   // ── Returns ──
   function addReturn() {
     if (!returnForm.itemName) return setReturnErr("Select an item.");
-    if (Number(returnForm.qty) < 1) return setReturnErr("Qty must be at least 1.");
+    const qty = Math.floor(Number(returnForm.qty));
+    if (qty < 1) return setReturnErr("Qty must be a whole number of at least 1.");
     setReturnErr("");
     const sheetItem = items.find(it => it.name === returnForm.itemName);
     const returns = [
       ...(monitor.returns || []),
-      { itemName: returnForm.itemName, qty: Number(returnForm.qty), sheetRow: sheetItem?.sheetRow },
+      { itemName: returnForm.itemName, qty, sheetRow: sheetItem?.sheetRow },
     ];
     onUpdate({ ...monitor, returns });
     setReturnForm({ itemName: "", qty: 1 });
@@ -193,8 +194,10 @@ export function MonitoringTab({
     }
   }
 
-  const allReceived  = monitor && monitor.items.every(i => i.received);
-  const canApprove   = monitor && monitor.placed && monitor.arrived;
+  const hasActivity = monitor && (
+    monitor.items.some(i => i.received) || (monitor.returns || []).length > 0
+  );
+  const canApprove  = monitor && monitor.placed && monitor.arrived && hasActivity;
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
@@ -318,7 +321,7 @@ export function MonitoringTab({
                         TRACK ON {carr.name} →
                       </a>
                     )}
-                    {delDays !== null && (
+                    {delDays !== null && !isNaN(delDays) && (
                       <div style={{ marginLeft: "auto", textAlign: "center", flexShrink: 0 }}>
                         {isDelivered ? (
                           <>
@@ -402,7 +405,7 @@ export function MonitoringTab({
                 {monitor.items.map((item, idx) => {
                   const bg = idx % 2 === 0 ? "#0d1528" : "transparent";
                   return (
-                    <tr key={idx} style={{ opacity: item.received ? 0.55 : 1 }}>
+                    <tr key={item.name} style={{ opacity: item.received ? 0.55 : 1 }}>
                       <td style={{ ...S.td(bg), color: "#e8f0fc", textDecoration: item.received ? "line-through" : "none" }}>{item.name}</td>
                       <td style={{ ...S.td(bg), color: "#facc15", fontWeight: "bold", textAlign: "center" }}>{item.qty}</td>
                       <td style={{ ...S.td(bg), color: "#7a9cc8", textAlign: "center" }}>${item.price.toFixed(2)}</td>
@@ -439,7 +442,7 @@ export function MonitoringTab({
                     onChange={e => setReturnForm(f => ({ ...f, itemName: e.target.value }))}
                     style={{ ...S.inp, cursor: "pointer" }}>
                     <option value="">— select item —</option>
-                    {items.map((it, i) => <option key={i} value={it.name}>{it.name}</option>)}
+                    {items.map(it => <option key={it.name} value={it.name}>{it.name}</option>)}
                   </select>
                 </div>
                 <div style={{ flex: "0 1 80px" }}>
@@ -485,7 +488,9 @@ export function MonitoringTab({
               <div style={{ fontSize: 9, letterSpacing: 3, color: "#4a7ab5", marginBottom: 10 }}>◆ FINALIZE ORDER</div>
               {!canApprove && (
                 <div style={{ fontSize: 9, color: "#facc15", marginBottom: 10, letterSpacing: 1 }}>
-                  ⚠ Mark order as PLACED and ARRIVED before approving.
+                  ⚠ {(!monitor?.placed || !monitor?.arrived)
+                    ? "Mark order as PLACED and ARRIVED before approving."
+                    : "Mark at least one item as received before approving."}
                 </div>
               )}
               <div style={{ fontSize: 9, color: "#7a9cc8", marginBottom: 14, lineHeight: 1.6 }}>
