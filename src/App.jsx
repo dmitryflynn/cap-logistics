@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, Fragment } from "react";
+import * as XLSX from "xlsx";
 import { DemandPasswordModal, DemandEditor } from "./DemandEditor";
 import { MonitoringTab } from "./MonitoringTab";
 
@@ -294,7 +295,6 @@ export default function App() {
   const [catFilter, setCatFilter] = useState("All");
   const [statFilter, setStatFilter] = useState("All");
   const [prioritized, setPrioritized] = useState(false);
-  const [copied, setCopied]       = useState(false);
   const [demoMode, setDemoMode]   = useState(false);
   const [loans, setLoans]           = useState(loadLoans);
   const [demandOverrides, setDemandOverrides] = useState(() => {
@@ -636,20 +636,27 @@ export default function App() {
   const displayOrder = prioritized ? prioritizedOrder : orderItems;
   const displayTotal = displayOrder.reduce((s, i) => s + i.lineTotal, 0);
 
-  function handleCopy() {
-    const lines = [
-      "=== OVERLAKE COMPOSITE SQUADRON — VANGUARD ORDER ===",
-      `Date: ${new Date().toLocaleDateString()}`,
-      `Budget: $${budget.toFixed(2)} | Order Total: $${displayTotal.toFixed(2)}`,
-      "",
-      ...displayOrder.map(i =>
-        `${i.name.padEnd(36)} ×${String(i.qty).padStart(3)}  $${i.price.toFixed(2).padStart(6)}  =  $${i.lineTotal.toFixed(2).padStart(8)}`
-      ),
-      "",
-      `TOTAL: $${displayTotal.toFixed(2)}`,
-    ];
-    navigator.clipboard.writeText(lines.join("\n"));
-    setCopied(true); setTimeout(() => setCopied(false), 2000);
+  function handleExport() {
+    const rows = displayOrder.map(i => ({
+      "Item Name":  i.name,
+      "Priority":   STATUS[getStatus(i, i.loaned)].label,
+      "Qty":        i.qty,
+      "Price/ea":   i.price,
+      "Line Total": i.lineTotal,
+      "Link":       i.link || "",
+    }));
+    rows.push({});
+    rows.push({ "Item Name": "ORDER TOTAL", "Line Total": displayTotal });
+    rows.push({ "Item Name": "BUDGET",      "Line Total": budget });
+    rows.push({ "Item Name": "REMAINING",   "Line Total": parseFloat((budget - displayTotal).toFixed(2)) });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [{ wch: 38 }, { wch: 10 }, { wch: 6 }, { wch: 10 }, { wch: 12 }, { wch: 50 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Order");
+    const date = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `overlake-order-${date}.xlsx`);
   }
 
   const activeLoanCount    = loans.filter(l => !l.returned).length;
@@ -874,8 +881,8 @@ export default function App() {
                     {prioritized ? "◆ PRIORITIZED" : "⚠ OVER BUDGET — PRIORITIZE"}
                   </button>
                 )}
-                <button onClick={handleCopy} style={S.btn(copied ? "#4ade80" : "#4a7ab5", copied ? "#0a2d0a" : "#0d1528")}>
-                  {copied ? "✓ COPIED" : "⎘ COPY ORDER"}
+                <button onClick={handleExport} style={S.btn("#4a7ab5", "#0d1528")}>
+                  ⬇ EXPORT ORDER
                 </button>
                 {displayOrder.length > 0 && !monitor && (
                   <button onClick={lockInOrder} style={S.btn("#facc15", "#1a1400")}>
