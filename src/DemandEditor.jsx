@@ -62,7 +62,7 @@ export function DemandEditor({ items, overrides, onSave, onClose }) {
   function save() {
     const next = {};
     items.forEach(i => {
-      const v = parseInt(vals[i.name]);
+      const v = parseInt(vals[i.name], 10);
       // Only persist items that actually differ from the sheet default
       if (!isNaN(v) && v >= 0 && v !== i.demand) next[i.name] = v;
     });
@@ -95,7 +95,7 @@ export function DemandEditor({ items, overrides, onSave, onClose }) {
             <tbody>
               {items.map((item, i) => {
                 const hasOverride = overrides[item.name] !== undefined && overrides[item.name] !== item.demand;
-                const currentVal  = parseInt(vals[item.name]);
+                const currentVal  = parseInt(vals[item.name], 10);
                 const isDirty     = !isNaN(currentVal) && currentVal !== item.demand;
                 return (
                   <tr key={i}>

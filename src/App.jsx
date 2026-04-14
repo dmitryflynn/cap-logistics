@@ -161,9 +161,10 @@ function LoansTab({ items, loans, onAddLoan, onReturnLoan }) {
   function submit() {
     if (!form.itemName)         return setFormError("Select an item.");
     if (!form.borrower.trim())  return setFormError("Enter borrower name.");
-    if (Number(form.qty) < 1)   return setFormError("Quantity must be at least 1.");
+    const qty = Math.floor(Number(form.qty));
+    if (qty < 1)                 return setFormError("Quantity must be a whole number of at least 1.");
     setFormError("");
-    onAddLoan({ ...form, borrower: form.borrower.trim(), qty: Number(form.qty) });
+    onAddLoan({ ...form, borrower: form.borrower.trim(), qty });
     setForm({ itemName: "", borrower: "", qty: 1, dateOut: today });
   }
 
@@ -178,8 +179,8 @@ function LoansTab({ items, loans, onAddLoan, onReturnLoan }) {
             <select value={form.itemName} onChange={e => setForm(f => ({ ...f, itemName: e.target.value }))}
               style={{ ...S.input, cursor: "pointer" }}>
               <option value="">— select item —</option>
-              {items.map((item, i) => (
-                <option key={i} value={item.name}>{item.name}</option>
+              {items.map(item => (
+                <option key={item.name} value={item.name}>{item.name}</option>
               ))}
             </select>
           </div>
@@ -357,7 +358,7 @@ export default function App() {
       setItems(parsed);
 
       const bv = budgetJson.values?.[0]?.[0];
-      if (bv) setBudget(parseFloat(String(bv).replace(/[$,]/g, "")) || 350);
+      if (bv != null && bv !== "") setBudget(parseFloat(String(bv).replace(/[$,]/g, "")) || 0);
 
       setLastSync(new Date());
       setDemoMode(false);
@@ -475,18 +476,22 @@ export default function App() {
     localStorage.setItem("cap_loans", JSON.stringify(updated));
     // Update sheet row
     if (loan?.sheetRow) {
-      try {
-        const token = await getOAuthToken();
-        const range = encodeURIComponent(`Loans!F${loan.sheetRow}:G${loan.sheetRow}`);
-        const r = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`,
-          { method: "PUT", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ values: [["TRUE", dateIn]] }) }
-        );
-        if (r.status === 401) { _sessionToken = null; }
-        fetchLoans(); // re-sync all devices after marking returned
-      } catch (e) {
-        console.error("returnLoan sheet write:", e.message);
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const token = await getOAuthToken();
+          const range = encodeURIComponent(`Loans!F${loan.sheetRow}:G${loan.sheetRow}`);
+          const r = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`,
+            { method: "PUT", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ values: [["TRUE", dateIn]] }) }
+          );
+          if (r.status === 401 && attempt === 0) { _sessionToken = null; continue; }
+          fetchLoans(); // re-sync all devices after marking returned
+          break;
+        } catch (e) {
+          console.error("returnLoan sheet write:", e.message);
+          break;
+        }
       }
     }
     if (loan) writeOnHandDelta(loan.itemName, Number(loan.qty));
@@ -635,6 +640,11 @@ export default function App() {
 
   const displayOrder = prioritized ? prioritizedOrder : orderItems;
   const displayTotal = displayOrder.reduce((s, i) => s + i.lineTotal, 0);
+
+  // Auto-clear prioritized mode if order comes back within budget
+  useEffect(() => {
+    if (prioritized && !overBudget) setPrioritized(false);
+  }, [overBudget]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleExport() {
     const rows = displayOrder.map(i => ({
