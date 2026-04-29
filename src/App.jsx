@@ -107,12 +107,8 @@ function loadLoans() {
   catch { return []; }
 }
 
-// ── Loan-only items (never ordered, qty tracked locally) ─────────────────────
-const LOAN_ONLY_NAMES = ["Blues Cover", "Blues Blouse", "Blues Trousers", "Blues Skirt"];
-function loadLoanOnlyQtys() {
-  try { return JSON.parse(localStorage.getItem("cap_loan_only") || "{}"); }
-  catch { return {}; }
-}
+// ── Loan-only items: shown in inventory/loans but never on the order sheet ────
+const LOAN_ONLY_NAMES = new Set(["Blues Cover", "Blues Blouse", "Blues Trousers", "Blues Skirt"]);
 
 // ── Session OAuth token cache (one popup per page load) ──────────────────────
 let _sessionToken = null;
@@ -315,7 +311,6 @@ export default function App() {
   });
   const [showDemandPw, setShowDemandPw]         = useState(false);
   const [showDemandEditor, setShowDemandEditor] = useState(false);
-  const [loanOnlyQtys, setLoanOnlyQtys]         = useState(loadLoanOnlyQtys);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
   useEffect(() => {
     const h = () => setIsMobile(window.innerWidth < 640);
@@ -443,15 +438,6 @@ export default function App() {
 
   // Loan handlers
   async function writeOnHandDelta(itemName, delta, _retried = false) {
-    // Loan-only items have no sheet row — update local count only
-    if (LOAN_ONLY_NAMES.includes(itemName)) {
-      setLoanOnlyQtys(prev => {
-        const updated = { ...prev, [itemName]: Math.max(0, (prev[itemName] ?? 0) + delta) };
-        localStorage.setItem("cap_loan_only", JSON.stringify(updated));
-        return updated;
-      });
-      return;
-    }
     const item = items.find(i => i.name === itemName);
     if (!item?.sheetRow) return;
     try {
@@ -614,32 +600,15 @@ export default function App() {
     return map;
   }, [loans]);
 
-  // Apply local demand overrides (password-protected)
+  // Apply local demand overrides; mark items in LOAN_ONLY_NAMES with loanOnly flag
   const itemsWithDemand = useMemo(() =>
     items.map(i => {
       const d = demandOverrides[i.name] ?? i.demand;
-      return { ...i, demand: d, minLevel: d };
+      return { ...i, demand: d, minLevel: d, loanOnly: LOAN_ONLY_NAMES.has(i.name) };
     }),
     [items, demandOverrides]);
 
-  // Loan-only items merged in — never ordered, qty tracked in localStorage
-  const loanOnlyItems = useMemo(() =>
-    LOAN_ONLY_NAMES.map(name => ({
-      category: "Uniform Items",
-      name,
-      onHand:   loanOnlyQtys[name] ?? 0,
-      onOrder:  0,
-      demand:   0,
-      price:    0,
-      link:     "",
-      minLevel: 0,
-      sheetRow: null,
-      loanOnly: true,
-    })),
-    [loanOnlyQtys]);
-
-  // Full item list: sheet items + loan-only items
-  const allItems = useMemo(() => [...itemsWithDemand, ...loanOnlyItems], [itemsWithDemand, loanOnlyItems]);
+  const allItems = itemsWithDemand;
 
   // Derived data (use allItems so loan-only items appear in inventory/loans)
   const cats = useMemo(() =>
@@ -896,11 +865,8 @@ export default function App() {
                                 style={{ width: 52, background: "transparent", border: "1px solid #2e3a4e", color: "#c8d4e8", textAlign: "center", padding: "2px 4px", fontSize: 13, fontFamily: "inherit" }}
                                 onBlur={e => {
                                   const v = parseInt(e.target.value);
-                                  if (!isNaN(v) && v >= 0 && v !== item.onHand) {
-                                    const updated = { ...loanOnlyQtys, [item.name]: v };
-                                    setLoanOnlyQtys(updated);
-                                    localStorage.setItem("cap_loan_only", JSON.stringify(updated));
-                                  }
+                                  if (!isNaN(v) && v >= 0 && v !== item.onHand)
+                                    writeOnHandDelta(item.name, v - item.onHand);
                                 }}
                                 onKeyDown={e => e.key === "Enter" && e.target.blur()}
                               />
