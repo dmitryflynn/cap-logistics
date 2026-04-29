@@ -107,6 +107,13 @@ function loadLoans() {
   catch { return []; }
 }
 
+// ── Loan-only items (never ordered, qty tracked locally) ─────────────────────
+const LOAN_ONLY_NAMES = ["Blues Cover", "Blues Blouse", "Blues Trousers", "Blues Skirt"];
+function loadLoanOnlyQtys() {
+  try { return JSON.parse(localStorage.getItem("cap_loan_only") || "{}"); }
+  catch { return {}; }
+}
+
 // ── Session OAuth token cache (one popup per page load) ──────────────────────
 let _sessionToken = null;
 async function getOAuthToken() {
@@ -308,6 +315,7 @@ export default function App() {
   });
   const [showDemandPw, setShowDemandPw]         = useState(false);
   const [showDemandEditor, setShowDemandEditor] = useState(false);
+  const [loanOnlyQtys, setLoanOnlyQtys]         = useState(loadLoanOnlyQtys);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
   useEffect(() => {
     const h = () => setIsMobile(window.innerWidth < 640);
@@ -425,6 +433,15 @@ export default function App() {
 
   // Loan handlers
   async function writeOnHandDelta(itemName, delta, _retried = false) {
+    // Loan-only items have no sheet row — update local count only
+    if (LOAN_ONLY_NAMES.includes(itemName)) {
+      setLoanOnlyQtys(prev => {
+        const updated = { ...prev, [itemName]: Math.max(0, (prev[itemName] ?? 0) + delta) };
+        localStorage.setItem("cap_loan_only", JSON.stringify(updated));
+        return updated;
+      });
+      return;
+    }
     const item = items.find(i => i.name === itemName);
     if (!item?.sheetRow) return;
     try {
@@ -595,23 +612,42 @@ export default function App() {
     }),
     [items, demandOverrides]);
 
-  // Derived data
-  const cats = useMemo(() =>
-    ["All", ...Array.from(new Set(itemsWithDemand.map(i => i.category).filter(Boolean)))],
-    [itemsWithDemand]);
+  // Loan-only items merged in — never ordered, qty tracked in localStorage
+  const loanOnlyItems = useMemo(() =>
+    LOAN_ONLY_NAMES.map(name => ({
+      category: "Uniform Items",
+      name,
+      onHand:   loanOnlyQtys[name] ?? 0,
+      onOrder:  0,
+      demand:   0,
+      price:    0,
+      link:     "",
+      minLevel: 0,
+      sheetRow: null,
+      loanOnly: true,
+    })),
+    [loanOnlyQtys]);
 
-  const filtered = useMemo(() => itemsWithDemand.filter(i => {
+  // Full item list: sheet items + loan-only items
+  const allItems = useMemo(() => [...itemsWithDemand, ...loanOnlyItems], [itemsWithDemand, loanOnlyItems]);
+
+  // Derived data (use allItems so loan-only items appear in inventory/loans)
+  const cats = useMemo(() =>
+    ["All", ...Array.from(new Set(allItems.map(i => i.category).filter(Boolean)))],
+    [allItems]);
+
+  const filtered = useMemo(() => allItems.filter(i => {
     const cOk = catFilter === "All" || i.category === catFilter;
     const st  = getStatus(i, loanMap[i.name] || 0);
     const sOk = statFilter === "All" || st === statFilter.toLowerCase();
     return cOk && sOk;
-  }), [itemsWithDemand, catFilter, statFilter, loanMap]);
+  }), [allItems, catFilter, statFilter, loanMap]);
 
   const counts = useMemo(() => ({
-    ok:       itemsWithDemand.filter(i => getStatus(i, loanMap[i.name] || 0) === "ok").length,
-    low:      itemsWithDemand.filter(i => getStatus(i, loanMap[i.name] || 0) === "low").length,
-    critical: itemsWithDemand.filter(i => getStatus(i, loanMap[i.name] || 0) === "critical").length,
-  }), [itemsWithDemand, loanMap]);
+    ok:       allItems.filter(i => getStatus(i, loanMap[i.name] || 0) === "ok").length,
+    low:      allItems.filter(i => getStatus(i, loanMap[i.name] || 0) === "low").length,
+    critical: allItems.filter(i => getStatus(i, loanMap[i.name] || 0) === "critical").length,
+  }), [allItems, loanMap]);
 
   const orderItems = useMemo(() =>
     itemsWithDemand
@@ -839,23 +875,52 @@ export default function App() {
                         )}
                         <tr>
                           <td style={{ ...S.td(bg), color: "#e8f0fc", whiteSpace: "nowrap" }}>{item.name}</td>
-                          <td style={{ ...S.td(bg), color: item.onHand === 0 ? "#f87171" : "#e8f0fc", fontWeight: "bold", textAlign: "center" }}>{item.onHand}</td>
+                          {item.loanOnly ? (
+                            /* Loan-only: editable on-hand qty, no demand/order/price */
+                            <td style={{ ...S.td(bg), textAlign: "center" }}>
+                              <input
+                                key={item.onHand}
+                                type="number" min={0}
+                                defaultValue={item.onHand}
+                                title="Set on-hand quantity"
+                                style={{ width: 52, background: "transparent", border: "1px solid #2e3a4e", color: "#c8d4e8", textAlign: "center", padding: "2px 4px", fontSize: 13, fontFamily: "inherit" }}
+                                onBlur={e => {
+                                  const v = parseInt(e.target.value);
+                                  if (!isNaN(v) && v >= 0 && v !== item.onHand) {
+                                    const updated = { ...loanOnlyQtys, [item.name]: v };
+                                    setLoanOnlyQtys(updated);
+                                    localStorage.setItem("cap_loan_only", JSON.stringify(updated));
+                                  }
+                                }}
+                                onKeyDown={e => e.key === "Enter" && e.target.blur()}
+                              />
+                            </td>
+                          ) : (
+                            <td style={{ ...S.td(bg), color: item.onHand === 0 ? "#f87171" : "#e8f0fc", fontWeight: "bold", textAlign: "center" }}>{item.onHand}</td>
+                          )}
                           <td style={{ ...S.td(bg), textAlign: "center" }}>
                             {loaned > 0
                               ? <span style={{ color: "#facc15", fontSize: 10 }}>{loaned}</span>
                               : <span style={{ color: "#2e3a4e" }}>—</span>}
                           </td>
-                          <td style={{ ...S.td(bg), color: "#7a9cc8", textAlign: "center" }}>{item.demand}</td>
+                          <td style={{ ...S.td(bg), color: "#7a9cc8", textAlign: "center" }}>
+                            {item.loanOnly ? <span style={{ color: "#2e3a4e" }}>—</span> : item.demand}
+                          </td>
                           <td style={{ ...S.td(bg), textAlign: "center" }}>
-                            {toOrd > 0
+                            {item.loanOnly ? <span style={{ color: "#2e3a4e" }}>—</span> : toOrd > 0
                               ? <span style={{ color: "#facc15", fontWeight: "bold", background: "#1a1400", padding: "2px 6px", border: "1px solid #facc1544" }}>{toOrd}</span>
                               : <span style={{ color: "#2e5fa3" }}>—</span>}
                           </td>
-                          <td style={{ ...S.td(bg), color: "#7a9cc8", textAlign: "center" }}>{item.price > 0 ? `$${item.price.toFixed(2)}` : "—"}</td>
+                          <td style={{ ...S.td(bg), color: "#7a9cc8", textAlign: "center" }}>
+                            {item.loanOnly ? <span style={{ color: "#2e3a4e" }}>—</span> : item.price > 0 ? `$${item.price.toFixed(2)}` : "—"}
+                          </td>
                           <td style={S.td(bg)}>
-                            <span style={{ display: "inline-flex", alignItems: "center", fontSize: 9, letterSpacing: 2, color: sc.color, whiteSpace: "nowrap" }}>
-                              <span style={S.dot(sc.color)} />{sc.label}
-                            </span>
+                            {item.loanOnly
+                              ? <span style={{ fontSize: 9, letterSpacing: 2, color: "#4a7ab5", whiteSpace: "nowrap" }}>LOAN ONLY</span>
+                              : <span style={{ display: "inline-flex", alignItems: "center", fontSize: 9, letterSpacing: 2, color: sc.color, whiteSpace: "nowrap" }}>
+                                  <span style={S.dot(sc.color)} />{sc.label}
+                                </span>
+                            }
                           </td>
                         </tr>
                       </Fragment>
@@ -971,7 +1036,7 @@ export default function App() {
         {/* ── LOANS TAB ── */}
         {tab === "loans" && (
           <LoansTab
-            items={itemsWithDemand}
+            items={allItems}
             loans={loans}
             onAddLoan={addLoan}
             onReturnLoan={returnLoan}
@@ -981,7 +1046,7 @@ export default function App() {
         {/* ── MONITORING TAB ── */}
         {tab === "monitoring" && (
           <MonitoringTab
-            items={items}
+            items={allItems}
             orderItems={displayOrder}
             monitor={monitor}
             onUpdate={saveMonitor}
