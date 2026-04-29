@@ -332,35 +332,45 @@ export default function App() {
   async function fetchSheet() {
     setLoading(true); setError(null);
     try {
-      const encode = r => encodeURIComponent(r);
-      const base = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values`;
+      // Use spreadsheets.get to retrieve both cell values AND embedded hyperlinks.
+      // spreadsheets.values only returns display text; hyperlinks live in CellData.
+      const fields  = encodeURIComponent("sheets(data(rowData(values(hyperlink,effectiveValue))))");
       const [dataRes, budgetRes] = await Promise.all([
-        fetch(`${base}/${encode(SHEET_RANGE)}?key=${API_KEY}&valueRenderOption=UNFORMATTED_VALUE`),
-        fetch(`${base}/${encode(BUDGET_RANGE)}?key=${API_KEY}&valueRenderOption=UNFORMATTED_VALUE`),
+        fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?ranges=${encodeURIComponent(SHEET_RANGE)}&fields=${fields}&key=${API_KEY}`),
+        fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(BUDGET_RANGE)}?key=${API_KEY}&valueRenderOption=UNFORMATTED_VALUE`),
       ]);
       if (!dataRes.ok) throw new Error(`Sheets API error: ${dataRes.status}`);
       const dataJson   = await dataRes.json();
       const budgetJson = await budgetRes.json();
 
-      const rows = dataJson.values || [];
+      // Helper: extract raw value from a CellData object
+      const cv = (cell) => {
+        const ev = cell?.effectiveValue;
+        if (!ev) return "";
+        if (ev.numberValue !== undefined) return ev.numberValue;
+        if (ev.stringValue !== undefined) return ev.stringValue;
+        return "";
+      };
+
+      const rowData = dataJson.sheets?.[0]?.data?.[0]?.rowData || [];
       const parsed = [];
       let lastCat = "";
-      for (let ri = 0; ri < rows.length; ri++) {
-        const row  = rows[ri];
-        const cat  = (row[0] || "").trim();
-        const item = (row[1] || "").trim();
+      for (let ri = 0; ri < rowData.length; ri++) {
+        const cells = rowData[ri]?.values || [];
+        const cat   = String(cv(cells[0]) || "").trim();
+        const item  = String(cv(cells[1]) || "").trim();
         if (!item) continue;
         if (cat) lastCat = cat;
         parsed.push({
           category: lastCat,
           name:     item,
-          onHand:   parseFloat(row[2]) || 0,
-          onOrder:  parseFloat(row[3]) || 0,
-          demand:   parseFloat(row[4]) || 0,
-          price:    parseFloat(row[7]) || 0,
-          link:     (row[9] || "").trim(),
-          minLevel: parseFloat(row[4]) || 0,
-          sheetRow: 5 + ri, // row 5 is index 0 in the API response
+          onHand:   parseFloat(cv(cells[2])) || 0,
+          onOrder:  parseFloat(cv(cells[3])) || 0,
+          demand:   parseFloat(cv(cells[4])) || 0,
+          price:    parseFloat(cv(cells[7])) || 0,
+          link:     cells[9]?.hyperlink || "", // actual embedded URL, not display text
+          minLevel: parseFloat(cv(cells[4])) || 0,
+          sheetRow: 5 + ri,
         });
       }
       setItems(parsed);
