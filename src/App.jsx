@@ -353,6 +353,8 @@ export default function App() {
       for (let ri = 0; ri < rowData.length; ri++) {
         const cells = rowData[ri]?.values || [];
         const cat   = String(cv(cells[0]) || "").trim();
+        // Stop at the totals footer — everything below is summary rows or duplicates
+        if (cat === "TOTAL ORDER COST" || cat === "REMAINING BUDGET") break;
         const item  = String(cv(cells[1]) || "").trim();
         if (!item) continue;
         if (cat) lastCat = cat;
